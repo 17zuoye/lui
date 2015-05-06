@@ -302,37 +302,6 @@ class PipCommonEggs(PipEnv):
     def requires(self):
         return PipEnv
 
-    def packages(self):
-        return [
-            # 1 database
-            "pysqlite",
-            "pysqlite",
-            "pymongo==2.7.2",   # 3.0 更新API了, 没有 AttributeError: 'module' object has no attribute 'Connection'
-            "sqlalchemy",
-            "peewee",
-            "mongoengine",
-            "MySQL-python",
-
-            # 2 utils
-            # "etl_utils",
-            "model_cache",
-            "arrow",
-            "bunch",
-            "inflector",
-            "unicodecsv",
-            "statistics",
-            "python-dateutil",  # not "dateutil"
-            "PyYAML",
-            "cached_property",
-            "joblib",
-
-            # 3 commands
-            "mercurial",
-            "pip",
-
-            # 4 data
-            "numpy", ]
-
 
 def detect_install_queue(env, install_queue=[]):
     """ Detect env queue recursively. """
@@ -399,22 +368,57 @@ example_json = """
     "application_user": "builtbot",
     "env": {
         "CommonYumPackages": {
-            "packages": ["gcc", "gcc-c++", "g++", "make", "autoconf", "automake", "libtool", "bison", "rpm-build",
-                "zlib-devel", "openssl-devel", "readline-devel", "sqlite-devel", "bzip2-devel", "libxml2-devel", "libyaml-devel", "libffi-devel",
-                "git", "wget", "curl", "dkms", "nfs-utils", "screen", "vim", "tree", "telnet", "perl", "ruby", "python",
-                "python-devel", "libevent-devel", "libxslt-devel",
-                "mongodb-server", "mongodb", "mysql-devel", "mysqltuner",
-                "truss", "strace", "lstrace", "htop", "lsof", "iostat", "vmstat", "iftop",
-                "numpy", "scipy", "sympy", "blas-devel", "lapack-devel"
-            ]
+            "attrs": {
+                "packages": ["gcc", "gcc-c++", "g++", "make", "autoconf", "automake", "libtool", "bison", "rpm-build",
+                    "zlib-devel", "openssl-devel", "readline-devel", "sqlite-devel", "bzip2-devel", "libxml2-devel", "libyaml-devel", "libffi-devel",
+                    "git", "wget", "curl", "dkms", "nfs-utils", "screen", "vim", "tree", "telnet", "perl", "ruby", "python",
+                    "python-devel", "libevent-devel", "libxslt-devel",
+                    "mongodb-server", "mongodb", "mysql-devel", "mysqltuner",
+                    "truss", "strace", "lstrace", "htop", "lsof", "iostat", "vmstat", "iftop",
+                    "numpy", "scipy", "sympy", "blas-devel", "lapack-devel"
+                ]
+            }
         },
         "PythonDepYumPackages": {
-            "packages": ["patch", "libtiff-devel", "libjpeg-devel", "freetype-devel", "openssl-devel", "readline-devel",
-                "libzip-devel", "bzip2-devel", "lcms2-devel", "python-devel", "sqlite-devel", "tcl-devel", "tk-devel"]
+            "attrs": {
+                "packages": ["patch", "libtiff-devel", "libjpeg-devel", "freetype-devel", "openssl-devel", "readline-devel",
+                    "libzip-devel", "bzip2-devel", "lcms2-devel", "python-devel", "sqlite-devel", "tcl-devel", "tk-devel"]
+            }
         },
         "AddUserEnv": {
-            "custom_user": "buildbot"
+            "attrs": {
+                "custom_user": "buildbot"
+            }
+        },
+        "PipCommonEggs": {
+            "attrs": {
+                "packages": [
+                    "pysqlite",
+                    "pysqlite",
+                    "pymongo==2.7.2 # 3.0 更新API了, 没有 AttributeError: 'module' object has no attribute 'Connection'",
+                    "sqlalchemy",
+                    "peewee",
+                    "mongoengine",
+                    "MySQL-python",
+
+                    "model_cache",
+                    "arrow",
+                    "bunch",
+                    "inflector",
+                    "unicodecsv",
+                    "statistics",
+                    "python-dateutil #   # not dateutil",
+                    "PyYAML",
+                    "cached_property",
+                    "joblib",
+
+                    "mercurial",
+                    "pip",
+
+                    "numpy"]
+            }
         }
+
     },
     "env_run_with_first": [
         "AddUserEnv",
@@ -427,7 +431,7 @@ if __name__ == '__main__':
     # args_main = parser.parse_args()
     # json_file = args_main.json_file
     if len(sys.argv) < 2:
-        raise ValueError("[error] Please provide a json file ...")
+        raise ValueError("[error] Please provide a json file ... example json is \n\n\n %s" % example_json)
 
     json_file = sys.argv[1]
     lui_json = json.loads(file(json_file).read())
@@ -439,7 +443,7 @@ if __name__ == '__main__':
     env_dict = lui_json["env"]
     for env_cls_name in env_dict.keys():
         env_cls = locals()[env_cls_name]
-        for k1, v1 in env_dict[env_cls_name].iteritems():
+        for k1, v1 in env_dict[env_cls_name]["attrs"].iteritems():
             # to bind variable in loop.
             v1_wrap = (lambda v1: lambda self: v1)(v1)
             setattr(env_cls, k1, v1_wrap)
