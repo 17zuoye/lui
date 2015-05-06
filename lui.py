@@ -31,7 +31,7 @@ curr_dir = os.getcwd()
 
 def get_current_user():
     return COMMANDS.getstatusoutput("whoami")[1]
-source_profile = "source /etc/profile; source ~/.bashrc; source ~/.bash_profile;" if os.getenv("IS_NEED_SOURCE", "False") == "True" else ""
+source_profile = ""
 
 
 # TODO assert env is ready
@@ -78,7 +78,7 @@ class PackageEnv(Env):
     def run(self):
         """ Run the install shell scripts"""
         # 1 build shell command list
-        commands = ["%s %s" % (self.install_cmd(), pkg1) for pkg1 in self.packages()]
+        commands = ["%s %s" % (self.run_cmd(), pkg1) for pkg1 in self.packages()]
 
         for command1 in commands:
             print "[command]", command1
@@ -108,6 +108,7 @@ class ShellBehavior(Env):
             source_profile,
             self.shell_scripts(),
         ])
+        print "[command]", context
         os.system(context)
 
     def shell_scripts(self):
@@ -136,11 +137,12 @@ class AddUserEnv(ShellBehavior):
             export USERNAME=%s
             useradd -d /home/$USERNAME -s /bin/bash $USERNAME
 
+            su - $USERNAME
             cd /home/$USERNAME
             mkdir -p .ssh
             touch .ssh/authorized_keys
             chmod 0600 .ssh/authorized_keys
-            chmod -R 0600 .ssh
+            chmod -R 0700 .ssh
             chown -R $USERNAME:$USERNAME .ssh
         """ % self._user
 
@@ -221,7 +223,8 @@ class PyenvEnv(ShellBehavior):
         return GitEnv
 
     def done(self):
-        return os.path.exists(os.getenv("PYENV_ROOT"))
+        pyenv_path = COMMANDS.getoutput("%s which pyenv" % source_profile)
+        return os.path.exists(pyenv_path)
 
     def shell_scripts(self):
         return u"""
@@ -233,6 +236,7 @@ class PyenvEnv(ShellBehavior):
           echo 'export PATH="$PYENV_ROOT/bin:$PATH"'                 >> .bash_profile
           echo 'export PYENV_VERSION=2.7.9'                          >> .bash_profile
           echo 'eval "$(pyenv init -)"'                              >> .bash_profile
+          source                                                        .bash_profile
           """
 
 
@@ -242,7 +246,8 @@ class PyenvInstalPython279(ShellBehavior):
         return PyenvEnv
 
     def done(self):
-        return os.path.exists(os.path.join(os.getenv("PYENV_ROOT"), "versions/2.7.9"))
+        pyenv_root = COMMANDS.getoutput("pyenv root")  # Fix PYENV_ROOT env set in /etc/profile
+        return os.path.exists(os.path.join(pyenv_root, "versions/2.7.9"))
 
     def shell_scripts(self):
         return u"""
@@ -269,11 +274,12 @@ class PipEnv(PackageEnv):
         import pkg_resources
 
         for pkg1 in self.packages():
-            print "[try pkg]", pkg1
+            pkg1 = pkg1.split(" ")[0]
+            print u"[info] try pkg \"%s\"." % pkg1
             try:
                 pkg_resources.require(pkg1)  # support version
             except Exception:
-                print "[pkg is not done]", pkg1
+                print "[info] pkg \"%s\" is not done." % pkg1
                 self.undone_packages.append(pkg1)
         self.packages = lambda: self.undone_packages
         return len(self.undone_packages) == 0
@@ -300,7 +306,7 @@ class DjangoEnv(PipEnv):
 class PipCommonEggs(PipEnv):
     """ 通用 Python 第三方包 """
     def requires(self):
-        return PipEnv
+        return [PyenvEnv, PyenvInstalPython279]
 
 
 def detect_install_queue(env, install_queue=[]):
@@ -311,7 +317,8 @@ def detect_install_queue(env, install_queue=[]):
         print "[info]", env.__name__, "is already done."
         return install_queue
     else:
-        install_queue.insert(0, env)
+        if env not in install_queue:
+            install_queue.insert(0, env)
 
     requires = _env.requires()
     if not isinstance(requires, list):
@@ -345,7 +352,10 @@ def run(env):
         print
         print "[enter a env] running", env_name, "..."
 
-        required_users = _env._users() or [lui_json["application_user"]]
+        required_users = _env._users()
+        if len(required_users) == 0:
+            required_users = [lui_json["application_user"]]
+
         if current_user not in required_users:
             print "[error]", env_name, "requires user:", \
                   "\"" + str(_env._users()) + "\"", ", but current_user is", \
@@ -437,6 +447,8 @@ if __name__ == '__main__':
     lui_json = json.loads(file(json_file).read())
 
     assert "env" in lui_json, """%s has no "env" key""" % lui_json
+
+    source_profile = lui_json.get("source_profile", source_profile)
 
     # TODO check key exists
 
