@@ -24,7 +24,7 @@ before_script:
   - ssh -o StrictHostKeyChecking=no localhost true
 
 script:
-  - echo
+  - tox
 
 after_failure:
 
