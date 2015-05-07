@@ -330,6 +330,7 @@ def load_params():
 def get_env_run_task():
     env_dict = lui["lui_json"]["env"]
     for env_cls_name in env_dict.keys():
+        env_cls_name = str(env_cls_name)  # compact with Python
         # 1. get or create a env class
         env_cls = lui[env_cls_name]
         if env_cls is None:
@@ -338,6 +339,7 @@ def get_env_run_task():
             assert lui[task_type_str], "can't find a task class %s." % task_type_str
             inherit_class = lui[task_type_str]
             env_cls = type(task_type_str, (inherit_class, ), {})
+            setattr(env_cls, "__name__", env_cls_name)
             lui[env_cls_name] = env_cls  # bind cls to local
 
         # 2. set attrs
