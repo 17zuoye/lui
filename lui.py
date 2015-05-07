@@ -338,7 +338,7 @@ def get_env_run_task():
             task_type_str = str(env_dict[env_cls_name]["task_type"])
             assert lui[task_type_str], "can't find a task class %s." % task_type_str
             inherit_class = lui[task_type_str]
-            env_cls = type(task_type_str, (inherit_class, ), {})
+            env_cls = type(task_type_str, (inherit_class, ), {"__doc__": env_dict[env_cls_name].get("doc", None)})
             setattr(env_cls, "__name__", env_cls_name)
             lui[env_cls_name] = env_cls  # bind cls to local
 
