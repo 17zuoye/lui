@@ -45,8 +45,15 @@ class Env(object):
     dry = False
     verbose = True
 
-    user = NotImplemented
-    users = NotImplemented
+    _user = None  # default to current run user
+
+    @property
+    def user(self):
+        return self._user or lui_json["application_user"]
+
+    @property
+    def users(self):
+        return [self.user]
 
     @property
     def name(self):
@@ -100,7 +107,10 @@ class PackageEnv(Env):
 
 
 class YumEnv(PackageEnv):
-    user = "root"
+
+    @property
+    def _user(self):
+        return lui_json["root_user"]
 
     def run_cmd(self):
         return "%s    yum -y install" % source_profile
@@ -121,14 +131,10 @@ class ShellBehavior(Env):
 
 
 class AddUserEnv(ShellBehavior):
-    user = "root"
-    custom_user = NotImplementedError
 
     @property
     def _user(self):
-        _u = self.custom_user() if callable(self.custom_user) else self.custom_user
-        assert isinstance(_u, basestring), _u
-        return _u
+        return lui_json["root_user"]
 
     def done(self):
         try:
@@ -345,6 +351,7 @@ def run(env):
         _env = env()
 
         # change user
+        # TODO run `su - user "python __file__"`
         # _env1_user = _env.user
         # _env_uid       = int(COMMANDS.getstatusoutput("id -u " + _env_user)[1])
         # os.seteuid(_env_uid)
@@ -355,7 +362,7 @@ def run(env):
         current_user = get_current_user()
 
         print
-        print "[enter a env] running", env.name, "..."
+        print "[enter a env] running", _env.name, "..."
 
         required_users = _env._users()
         if len(required_users) == 0:
@@ -402,7 +409,7 @@ example_json = """
         },
         "AddUserEnv": {
             "attrs": {
-                "custom_user": "buildbot"
+                "_user": "buildbot"
             }
         },
         "PipCommonEggs": {

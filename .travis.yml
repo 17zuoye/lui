@@ -9,7 +9,7 @@ env:
     - TOXENV=py33
     - TOXENV=py34
 
-sudo: false
+sudo: true
 
 cache:
   - $HOME/.pip-cache
