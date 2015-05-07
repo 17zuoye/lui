@@ -47,7 +47,7 @@ class Env(object):
 
     @property
     def user(self):
-        return self._user or lui_json["application_user"]
+        return self._user or locals()["lui_json"]["application_user"]
 
     @property
     def users(self):
@@ -108,10 +108,10 @@ class YumEnv(PackageEnv):
 
     @property
     def _user(self):
-        return lui_json["root_user"]
+        return locals()["lui_json"]["root_user"]
 
     def run_cmd(self):
-        return "%s    yum -y install" % source_profile
+        return "%s    yum -y install" % locals()["source_profile"]
 
     def done(self):
         """ `rpm -qa` 返回的是一行一行软件包，但是没有空格符。 """
@@ -130,7 +130,7 @@ class ShellBehavior(Env):
 
     def run(self):
         context = "\n".join([
-            source_profile,
+            locals()["source_profile"],
             self.shell_scripts(),
         ])
         print "[command]", context
@@ -144,7 +144,7 @@ class AddUserEnv(ShellBehavior):
 
     @property
     def _user(self):
-        return lui_json["root_user"]
+        return locals()["lui_json"]["root_user"]
 
     def done(self):
         try:
@@ -202,7 +202,7 @@ class PyenvEnv(ShellBehavior):
         return ["GitEnv"]
 
     def done(self):
-        pyenv_path = cmd("%s; which pyenv" % source_profile)
+        pyenv_path = cmd("%s; which pyenv" % locals()["source_profile"])
         return os.path.exists(pyenv_path)
 
     def shell_scripts(self):
@@ -226,7 +226,7 @@ class PyenvInstalPython279(ShellBehavior):
 
     def done(self):
         # Fix PYENV_ROOT env set in /etc/profile
-        pyenv_root = cmd("%; pyenv root" % source_profile)
+        pyenv_root = cmd("%; pyenv root" % locals()["source_profile"])
         return os.path.exists(os.path.join(pyenv_root, "versions/2.7.9"))
 
     def shell_scripts(self):
@@ -246,7 +246,7 @@ class PipEnv(PackageEnv):
         return PyenvInstalPython279
 
     def run_cmd(self):
-        return "%s   pip install" % source_profile
+        return "%s   pip install" % locals()["source_profile"]
 
     undone_packages = []
 
@@ -311,7 +311,7 @@ def run(env):
 
         required_users = _env._users()
         if len(required_users) == 0:
-            required_users = [lui_json["application_user"]]
+            required_users = [locals()["lui_json"]["application_user"]]
 
         if current_user not in required_users:
             print "[error]", _env.name, "requires user:", \
@@ -323,28 +323,23 @@ def run(env):
         _env.run()
         print "[exit a env]", _env.name, "..."
 
-# import argparse # dont support Python 2.6, not builtin standard library.
-# parser = argparse.ArgumentParser(description='Lui aims to setup deployment environment.')
-# parser.add_argument('json_file', type=basestring, help='json config file for lui.')
-
 
 example_json = """
 """
 
-if __name__ == '__main__':
-    # args_main = parser.parse_args()
-    # json_file = args_main.json_file
+
+def load_params():
     if len(sys.argv) < 2:
         print ValueError("[error] Please provide a json file ... example json is \n\n\n %s" % example_json)
         exit()
 
     json_file = sys.argv[1]
-    lui_json = json.loads(file(json_file).read())
-    source_profile = lui_json.get("source_profile", "")
+    locals()["lui_json"] = json.loads(file(json_file).read())
+    locals()["source_profile"] = locals()["lui_json"].get("source_profile", "")
 
-    # TODO check key exists
 
-    env_dict = lui_json["env"]
+def get_env_run_task():
+    env_dict = locals()["lui_json"]["env"]
     for env_cls_name in env_dict.keys():
         # 1. get or create a env class
         env_cls = locals().get(env_cls_name, NotImplementedError)
@@ -366,5 +361,12 @@ if __name__ == '__main__':
             v1_wrap = (lambda v1: lambda self: v1)(v1)
             setattr(env_cls, k1, v1_wrap)
 
-    env_to_run_cls = locals()[lui_json["env_run_with_first"][0]]
+
+if __name__ == '__main__':
+    # TODO check key exists
+
+    load_params()
+    get_env_run_task()
+
+    env_to_run_cls = locals()[locals()["lui_json"]["env_run_with_first"][0]]
     run(env_to_run_cls)
