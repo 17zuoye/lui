@@ -47,6 +47,10 @@ class Env(object):
     user = NotImplemented
     users = NotImplemented
 
+    @property
+    def name(self):
+        return "<" + self.__class__.__name__ + ">"
+
     # 1 requires
     def requires(self):
         """ return required env class. """
@@ -313,6 +317,7 @@ def detect_install_queue(env, install_queue=[]):
     """ Detect env queue recursively. """
 
     _env = env()
+    print "[check a env] %s" % _env.name
     if _env.done():
         print "[info]", env.__name__, "is already done."
         return install_queue
@@ -336,7 +341,6 @@ def run(env):
 
     for env1 in install_queue:
         env = env1
-        env_name = "<" + env.__name__ + ">"
         _env = env()
 
         # change user
@@ -350,21 +354,21 @@ def run(env):
         current_user = get_current_user()
 
         print
-        print "[enter a env] running", env_name, "..."
+        print "[enter a env] running", env.name, "..."
 
         required_users = _env._users()
         if len(required_users) == 0:
             required_users = [lui_json["application_user"]]
 
         if current_user not in required_users:
-            print "[error]", env_name, "requires user:", \
+            print "[error]", _env.name, "requires user:", \
                   "\"" + str(_env._users()) + "\"", ", but current_user is", \
                   "\"" + current_user + "\"."
-            print "[exit a env]", env_name, "..."
+            print "[exit a env]", _env.name, "..."
             exit()
 
         _env.run()
-        print "[exit a env]", env_name, "..."
+        print "[exit a env]", _env.name, "..."
 
 # import argparse # dont support Python 2.6, not builtin standard library.
 # parser = argparse.ArgumentParser(description='Lui aims to setup deployment environment.')
