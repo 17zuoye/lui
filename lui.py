@@ -29,10 +29,7 @@ import json
 
 curr_dir = os.getcwd()
 
-
-def get_current_user():
-    return COMMANDS.getstatusoutput("whoami")[1]
-source_profile = ""
+current_user = COMMANDS.getstatusoutput("whoami")[1]
 
 
 # TODO assert env is ready
@@ -359,8 +356,6 @@ def run(env):
         if _env.done():
             continue
 
-        current_user = get_current_user()
-
         print
         print "[enter a env] running", _env.name, "..."
 
@@ -387,7 +382,8 @@ example_json = """
 {
     "linux_release_version": "centos",
     "root_user": "root",
-    "application_user": "builtbot",
+    "application_user": "buildbot",
+    "source_profile": "source /etc/profile; source ~/.bash_profile; source ~/.bashrc; ",
     "env": {
         "CommonYumPackages": {
             "attrs": {
@@ -443,6 +439,7 @@ example_json = """
 
     },
     "env_run_with_first": [
+        "PipCommonEggs",
         "AddUserEnv",
         "PythonDepYumPackages"
     ]
@@ -453,14 +450,15 @@ if __name__ == '__main__':
     # args_main = parser.parse_args()
     # json_file = args_main.json_file
     if len(sys.argv) < 2:
-        raise ValueError("[error] Please provide a json file ... example json is \n\n\n %s" % example_json)
+        print ValueError("[error] Please provide a json file ... example json is \n\n\n %s" % example_json)
+        exit()
 
     json_file = sys.argv[1]
     lui_json = json.loads(file(json_file).read())
 
     assert "env" in lui_json, """%s has no "env" key""" % lui_json
 
-    source_profile = lui_json.get("source_profile", source_profile)
+    source_profile = lui_json.get("source_profile", "")
 
     # TODO check key exists
 
