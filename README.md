@@ -26,3 +26,11 @@ called [linuxbrew](https://github.com/Homebrew/linuxbrew). They are both
 written in Ruby, and `lui` want to directly use their package
 informations, so `lui` need to be written in Ruby too, but now it is
 still written in Python ...
+
+
+Run tests
+----------------------------
+```bash
+pip install tox
+tox
+```

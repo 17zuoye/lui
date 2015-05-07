@@ -1,0 +1,143 @@
+{
+    "linux_release_version": "centos",
+    "root_user": "root",
+    "application_user": "travis",
+    "source_profile": "source /etc/profile; source ~/.bash_profile; source ~/.bashrc;",
+    "env": {
+        "CommonYumPackages": {
+           "doc": "packages is copied from https://github.com/mvj3/install/blob/master/definitions/hadoop_centos/base.sh",
+           "task_type": "YumEnv",
+            "attrs": {
+                "packages": ["gcc", "gcc-c++", "g++", "make", "autoconf", "automake", "libtool", "bison", "rpm-build",
+                    "zlib-devel", "openssl-devel", "readline-devel", "sqlite-devel", "bzip2-devel", "libxml2-devel", "libyaml-devel", "libffi-devel",
+                    "git", "wget", "curl", "dkms", "nfs-utils", "screen", "vim", "tree", "telnet", "perl", "ruby", "python",
+                    "python-devel", "libevent-devel", "libxslt-devel",
+                    "mongodb-server", "mongodb", "mysql-devel", "mysqltuner",
+                    "truss", "strace", "lstrace", "htop", "lsof", "iostat", "vmstat", "iftop",
+                    "numpy", "scipy", "sympy", "blas-devel", "lapack-devel"
+                ]
+            }
+        },
+        "PythonDepYumPackages": {
+            "task_type": "YumEnv",
+            "attrs": {
+              "requires": [ "FixPython26to27" ],
+                "packages": ["patch", "libtiff-devel", "libjpeg-devel", "freetype-devel", "openssl-devel", "readline-devel",
+                    "libzip-devel", "bzip2-devel", "lcms2-devel", "python-devel", "sqlite-devel", "tcl-devel", "tk-devel"]
+            }
+        },
+        "LuigiDepYumPackages": {
+            "task_type": "YumEnv",
+            "attrs": {
+              "requires": [ "PythonDepYumPackages" ],
+                "packages": ["mysql-devel"]
+            }
+        },
+        "InstallGit": {
+            "task_type": "YumEnv",
+            "attrs": {
+                "packages": ["git"]
+            }
+        },
+        "AddUserEnv": {
+            "attrs": {
+                "to_add_user": "buildbot"
+            }
+        },
+        "PipCommonEggs": {
+            "doc": "通用 Python 第三方包",
+            "task_type": "PipEnv",
+            "attrs": {
+                "requires": [
+                  "PyenvEnv",
+                  "PyenvInstalPython279"
+                ],
+                "packages": [
+                    "pysqlite",
+                    "pymongo==2.7.2 # 3.0 更新API了, 没有 AttributeError: 'module' object has no attribute 'Connection'",
+                    "sqlalchemy",
+                    "peewee",
+                    "mongoengine",
+                    "MySQL-python",
+
+                    "model_cache",
+                    "arrow",
+                    "bunch",
+                    "inflector",
+                    "unicodecsv",
+                    "statistics",
+                    "python-dateutil #   # not dateutil",
+                    "PyYAML",
+                    "cached_property",
+
+                    "mercurial",
+                    "pip",
+
+                    "numpy"]
+            }
+        },
+        "LuigiEnv": {
+            "task_type": "PipEnv",
+            "attrs": {
+                "requires": [
+                  "PyenvEnv",
+                  "LuigiDepYumPackages"
+                ],
+                "packages": [
+                  "luigi==1.1.2",
+                  "snakebite==2.5.2"
+                ]
+            }
+        },
+        "DjangoEnv": {
+            "task_type": "PipEnv",
+            "attrs": {
+                "requires": [
+                  "PyenvEnv"
+                ],
+                "packages": [
+                  "django",
+                  "flup"
+                ]
+            }
+        },
+        "InstallBuildbot": {
+            "task_type": "ShellBehavior",
+            "attrs": {
+                "shell_scripts": [
+                  "pip install buildbot",
+                  "pip install buildbot-slave;"
+                ]
+            }
+        },
+
+        "Foobar1": {
+            "task_type": "ShellBehavior",
+            "attrs": {
+                "output_file" : "Foobar1",
+                "shell_scripts": [
+                  "touch Foobar1"
+                ]
+            }
+        },
+        "Foobar2": {
+            "task_type": "ShellBehavior",
+            "attrs": {
+                "requires": [ "Foobar1" ],
+                "output_file" : "Foobar2",
+                "shell_scripts": [
+                  "touch Foobar2"
+                ]
+            }
+        }
+
+    },
+    "env_run_with_first": [
+        "Foobar2",
+
+        "InstallBuildbot",
+        "PipCommonEggs",
+        "AddUserEnv",
+        "PythonDepYumPackages"
+    ]
+}

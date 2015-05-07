@@ -29,7 +29,7 @@ import json
 
 curr_dir = os.getcwd()
 
-current_user = COMMANDS.getstatusoutput("whoami")[1]
+current_user = os.getenv("USER", COMMANDS.getoutput("whoami"))
 cmd = COMMANDS.getoutput
 
 
@@ -47,7 +47,7 @@ class Env(object):
 
     @property
     def user(self):
-        return self._user or locals()["lui_json"]["application_user"]
+        return self._user or lui["lui_json"]["application_user"]
 
     @property
     def users(self):
@@ -80,7 +80,7 @@ class Env(object):
             _us.append(self.user)
         if self.users is not NotImplemented:
             _us.extend(self.users)
-        return _us
+        return list(set(_us))
 
 
 class PackageEnv(Env):
@@ -108,10 +108,10 @@ class YumEnv(PackageEnv):
 
     @property
     def _user(self):
-        return locals()["lui_json"]["root_user"]
+        return lui["lui_json"]["root_user"]
 
     def run_cmd(self):
-        return "%s    yum -y install" % locals()["source_profile"]
+        return "%s    yum -y install" % lui["source_profile"]
 
     def done(self):
         """ `rpm -qa` 返回的是一行一行软件包，但是没有空格符。 """
@@ -130,7 +130,7 @@ class ShellBehavior(Env):
 
     def run(self):
         context = "\n".join([
-            locals()["source_profile"],
+            lui["source_profile"],
             self.shell_scripts(),
         ])
         print "[command]", context
@@ -139,12 +139,17 @@ class ShellBehavior(Env):
     def shell_scripts(self):
         raise NotImplementedError
 
+    output_file = lambda: "/not exists!"
+
+    def done(self):
+        return os.path.exists(self.output_file())
+
 
 class AddUserEnv(ShellBehavior):
 
     @property
     def _user(self):
-        return locals()["lui_json"]["root_user"]
+        return lui["lui_json"]["root_user"]
 
     def done(self):
         try:
@@ -165,7 +170,7 @@ class AddUserEnv(ShellBehavior):
             chmod 0600 .ssh/authorized_keys
             chmod -R 0700 .ssh
             chown -R $USERNAME:$USERNAME .ssh
-        """ % self._user
+        """ % self.to_add_user
 
 
 class FixPython26to27(ShellBehavior):
@@ -184,25 +189,13 @@ class FixPython26to27(ShellBehavior):
         return " wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python"
 
 
-"""
-    def done(self):
-        commands = " ".join(self.packages()).strip().split(" ")
-        is_yes = True
-        for c1 in commands:
-            output2 = COMMANDS.getstatusoutput("which %s" % c1)[1]
-            if (" no " in output2) or (" not " in output2):  # both match Linux and OSX.
-                is_yes = False
-        return is_yes
-"""
-
-
 class PyenvEnv(ShellBehavior):
 
     def requires(self):
-        return ["GitEnv"]
+        return ["InstallGit"]
 
     def done(self):
-        pyenv_path = cmd("%s; which pyenv" % locals()["source_profile"])
+        pyenv_path = cmd("%s; which pyenv" % lui["source_profile"])
         return os.path.exists(pyenv_path)
 
     def shell_scripts(self):
@@ -226,7 +219,7 @@ class PyenvInstalPython279(ShellBehavior):
 
     def done(self):
         # Fix PYENV_ROOT env set in /etc/profile
-        pyenv_root = cmd("%; pyenv root" % locals()["source_profile"])
+        pyenv_root = cmd("%; pyenv root" % lui["source_profile"])
         return os.path.exists(os.path.join(pyenv_root, "versions/2.7.9"))
 
     def shell_scripts(self):
@@ -246,7 +239,7 @@ class PipEnv(PackageEnv):
         return PyenvInstalPython279
 
     def run_cmd(self):
-        return "%s   pip install" % locals()["source_profile"]
+        return "%s   pip install" % lui["source_profile"]
 
     undone_packages = []
 
@@ -282,7 +275,7 @@ def detect_install_queue(env, install_queue=[]):
         requires = [requires]
     for required_env in requires:
         if isinstance(required_env, basestring):
-            required_env = locals()[required_env]
+            required_env = lui[required_env]
         detect_install_queue(required_env, install_queue)
 
     return install_queue
@@ -311,7 +304,7 @@ def run(env):
 
         required_users = _env._users()
         if len(required_users) == 0:
-            required_users = [locals()["lui_json"]["application_user"]]
+            required_users = [lui["lui_json"]["application_user"]]
 
         if current_user not in required_users:
             print "[error]", _env.name, "requires user:", \
@@ -324,32 +317,28 @@ def run(env):
         print "[exit a env]", _env.name, "..."
 
 
-example_json = """
-"""
-
-
 def load_params():
     if len(sys.argv) < 2:
-        print ValueError("[error] Please provide a json file ... example json is \n\n\n %s" % example_json)
+        print ValueError("[error] Please provide a json file ... \n see example json at https://raw.githubusercontent.com/17zuoye/lui/master/test_lui.json ")
         exit()
 
     json_file = sys.argv[1]
-    locals()["lui_json"] = json.loads(file(json_file).read())
-    locals()["source_profile"] = locals()["lui_json"].get("source_profile", "")
+    lui["lui_json"] = json.loads(file(json_file).read())
+    lui["source_profile"] = lui["lui_json"].get("source_profile", "")
 
 
 def get_env_run_task():
-    env_dict = locals()["lui_json"]["env"]
+    env_dict = lui["lui_json"]["env"]
     for env_cls_name in env_dict.keys():
         # 1. get or create a env class
-        env_cls = locals().get(env_cls_name, NotImplementedError)
-        if env_cls is NotImplementedError:
+        env_cls = lui[env_cls_name]
+        if env_cls is None:
             assert "task_type" in env_dict[env_cls_name], "%s is missing a task_type, e.g. ShellBehavior" % env_cls_name
-            task_type_str = env_dict[env_cls_name]["task_type"]
-            assert task_type_str in locals(), "can't find a task class %s." % task_type_str
-            inherit_class = locals()[task_type_str]
-            env_cls = type(env_dict[env_cls_name]["task_type"], (inherit_class, ), {})
-            locals()[env_cls_name] = env_cls  # bind cls to local
+            task_type_str = str(env_dict[env_cls_name]["task_type"])
+            assert lui[task_type_str], "can't find a task class %s." % task_type_str
+            inherit_class = lui[task_type_str]
+            env_cls = type(task_type_str, (inherit_class, ), {})
+            lui[env_cls_name] = env_cls  # bind cls to local
 
         # 2. set attrs
         for k1, v1 in env_dict[env_cls_name]["attrs"].iteritems():
@@ -362,11 +351,18 @@ def get_env_run_task():
             setattr(env_cls, k1, v1_wrap)
 
 
+class lui_env(dict):
+    """ delegate to globals(). """
+    def __missing__(self, k1):
+        return globals().get(k1, None)
+lui = lui_env()
+
+
 if __name__ == '__main__':
     # TODO check key exists
 
     load_params()
     get_env_run_task()
 
-    env_to_run_cls = locals()[locals()["lui_json"]["env_run_with_first"][0]]
+    env_to_run_cls = lui[lui["lui_json"]["env_run_with_first"][0]]
     run(env_to_run_cls)
