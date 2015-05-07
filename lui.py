@@ -33,6 +33,7 @@ current_user = os.getenv("USER", COMMANDS.getoutput("whoami"))
 cmd = COMMANDS.getoutput
 
 
+# TODO support linux_release_version
 # TODO assert env is ready
 # 1. whoami
 # 2. yum, rpm
@@ -139,10 +140,13 @@ class ShellBehavior(Env):
     def shell_scripts(self):
         raise NotImplementedError
 
-    output_file = lambda: "/not exists!"
+    output_file = lambda self: "/not exists!"
 
     def done(self):
-        return os.path.exists(self.output_file())
+        f1 = self.output_file()
+        result = os.path.exists(f1)
+        print "[check a env] \"%s\" exists output %s => %s" % (self.name, f1, result)
+        return result
 
 
 class AddUserEnv(ShellBehavior):
@@ -262,7 +266,6 @@ def detect_install_queue(env, install_queue=[]):
     """ Detect env queue recursively. """
 
     _env = env()
-    print "[check a env] %s" % _env.name
     if _env.done():
         print "[info]", env.__name__, "is already done."
         return install_queue
