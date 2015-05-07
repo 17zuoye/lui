@@ -30,6 +30,7 @@ import json
 curr_dir = os.getcwd()
 
 current_user = COMMANDS.getstatusoutput("whoami")[1]
+cmd = COMMANDS.getoutput
 
 
 # TODO assert env is ready
@@ -112,6 +113,18 @@ class YumEnv(PackageEnv):
     def run_cmd(self):
         return "%s    yum -y install" % source_profile
 
+    def done(self):
+        """ `rpm -qa` 返回的是一行一行软件包，但是没有空格符。 """
+        done_list = COMMANDS.getstatusoutput("rpm -qa")[1]
+        needed_rpm_packages = self.packages()
+        is_all_done = True
+        for rpm_package in needed_rpm_packages:
+            if rpm_package not in done_list:
+                print "[error] %s is not done." % rpm_package
+                is_all_done = False
+                break
+        return is_all_done
+
 
 class ShellBehavior(Env):
 
@@ -171,34 +184,7 @@ class FixPython26to27(ShellBehavior):
         return " wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python"
 
 
-class PythonDepYumPackages(YumEnv):
-
-    def requires(self):
-        return [FixPython26to27]
-
-    def done(self):
-        done_list = COMMANDS.getstatusoutput("rpm -qa")[1]
-        needed_rpm_packages = self.packages()
-        is_all_done = True
-        for rpm_package in needed_rpm_packages:
-            if rpm_package not in done_list:
-                print "[error] %s is not done." % rpm_package
-                is_all_done = False
-                break
-        return is_all_done
-
-
-class GitEnv(YumEnv):
-    def packages(self):
-        return "git"
-
-    def done(self):
-        return os.path.exists("/usr/bin/git")
-
-
-class CommonYumPackages(YumEnv):
-    # packages is copied from https://github.com/mvj3/install/blob/master/definitions/hadoop_centos/base.sh
-
+"""
     def done(self):
         commands = " ".join(self.packages()).strip().split(" ")
         is_yes = True
@@ -207,31 +193,16 @@ class CommonYumPackages(YumEnv):
             if (" no " in output2) or (" not " in output2):  # both match Linux and OSX.
                 is_yes = False
         return is_yes
-
-
-class LuigiDepYumPackages(YumEnv):
-
-    def requires(self):
-        return [PythonDepYumPackages]
-
-    def done(self):
-        """ `rpm -qa` 返回的是一行一行软件包，但是没有空格符。"""
-        done_list = COMMANDS.getstatusoutput("rpm -qa")[1]
-        return ("mysql-devel" in done_list) and \
-               ("\n" in done_list)
-
-    def packages(self):
-        return "mysql-devel " \
-               " "
+"""
 
 
 class PyenvEnv(ShellBehavior):
 
     def requires(self):
-        return GitEnv
+        return ["GitEnv"]
 
     def done(self):
-        pyenv_path = COMMANDS.getoutput("%s which pyenv" % source_profile)
+        pyenv_path = cmd("%s; which pyenv" % source_profile)
         return os.path.exists(pyenv_path)
 
     def shell_scripts(self):
@@ -254,7 +225,8 @@ class PyenvInstalPython279(ShellBehavior):
         return PyenvEnv
 
     def done(self):
-        pyenv_root = COMMANDS.getoutput("pyenv root")  # Fix PYENV_ROOT env set in /etc/profile
+        # Fix PYENV_ROOT env set in /etc/profile
+        pyenv_root = cmd("%; pyenv root" % source_profile)
         return os.path.exists(os.path.join(pyenv_root, "versions/2.7.9"))
 
     def shell_scripts(self):
@@ -293,30 +265,6 @@ class PipEnv(PackageEnv):
         return len(self.undone_packages) == 0
 
 
-class LuigiEnv(PipEnv):
-    def requires(self):
-        return [PipEnv, LuigiDepYumPackages]
-
-    def packages(self):
-        return [
-            "luigi==1.1.2",
-            "snakebite==2.5.2", ]
-
-
-class DjangoEnv(PipEnv):
-    def requires(self):
-        return [PipEnv]
-
-    def packages(self):
-        return ["django", "flup", ]
-
-
-class PipCommonEggs(PipEnv):
-    """ 通用 Python 第三方包 """
-    def requires(self):
-        return [PyenvEnv, PyenvInstalPython279]
-
-
 def detect_install_queue(env, install_queue=[]):
     """ Detect env queue recursively. """
 
@@ -333,6 +281,8 @@ def detect_install_queue(env, install_queue=[]):
     if not isinstance(requires, list):
         requires = [requires]
     for required_env in requires:
+        if isinstance(required_env, basestring):
+            required_env = locals()[required_env]
         detect_install_queue(required_env, install_queue)
 
     return install_queue
@@ -379,71 +329,6 @@ def run(env):
 
 
 example_json = """
-{
-    "linux_release_version": "centos",
-    "root_user": "root",
-    "application_user": "buildbot",
-    "source_profile": "source /etc/profile; source ~/.bash_profile; source ~/.bashrc; ",
-    "env": {
-        "CommonYumPackages": {
-            "attrs": {
-                "packages": ["gcc", "gcc-c++", "g++", "make", "autoconf", "automake", "libtool", "bison", "rpm-build",
-                    "zlib-devel", "openssl-devel", "readline-devel", "sqlite-devel", "bzip2-devel", "libxml2-devel", "libyaml-devel", "libffi-devel",
-                    "git", "wget", "curl", "dkms", "nfs-utils", "screen", "vim", "tree", "telnet", "perl", "ruby", "python",
-                    "python-devel", "libevent-devel", "libxslt-devel",
-                    "mongodb-server", "mongodb", "mysql-devel", "mysqltuner",
-                    "truss", "strace", "lstrace", "htop", "lsof", "iostat", "vmstat", "iftop",
-                    "numpy", "scipy", "sympy", "blas-devel", "lapack-devel"
-                ]
-            }
-        },
-        "PythonDepYumPackages": {
-            "attrs": {
-                "packages": ["patch", "libtiff-devel", "libjpeg-devel", "freetype-devel", "openssl-devel", "readline-devel",
-                    "libzip-devel", "bzip2-devel", "lcms2-devel", "python-devel", "sqlite-devel", "tcl-devel", "tk-devel"]
-            }
-        },
-        "AddUserEnv": {
-            "attrs": {
-                "_user": "buildbot"
-            }
-        },
-        "PipCommonEggs": {
-            "attrs": {
-                "packages": [
-                    "pysqlite",
-                    "pysqlite",
-                    "pymongo==2.7.2 # 3.0 更新API了, 没有 AttributeError: 'module' object has no attribute 'Connection'",
-                    "sqlalchemy",
-                    "peewee",
-                    "mongoengine",
-                    "MySQL-python",
-
-                    "model_cache",
-                    "arrow",
-                    "bunch",
-                    "inflector",
-                    "unicodecsv",
-                    "statistics",
-                    "python-dateutil #   # not dateutil",
-                    "PyYAML",
-                    "cached_property",
-                    "joblib",
-
-                    "mercurial",
-                    "pip",
-
-                    "numpy"]
-            }
-        }
-
-    },
-    "env_run_with_first": [
-        "PipCommonEggs",
-        "AddUserEnv",
-        "PythonDepYumPackages"
-    ]
-}
 """
 
 if __name__ == '__main__':
@@ -455,18 +340,29 @@ if __name__ == '__main__':
 
     json_file = sys.argv[1]
     lui_json = json.loads(file(json_file).read())
-
-    assert "env" in lui_json, """%s has no "env" key""" % lui_json
-
     source_profile = lui_json.get("source_profile", "")
 
     # TODO check key exists
 
     env_dict = lui_json["env"]
     for env_cls_name in env_dict.keys():
-        env_cls = locals()[env_cls_name]
+        # 1. get or create a env class
+        env_cls = locals().get(env_cls_name, NotImplementedError)
+        if env_cls is NotImplementedError:
+            assert "task_type" in env_dict[env_cls_name], "%s is missing a task_type, e.g. ShellBehavior" % env_cls_name
+            task_type_str = env_dict[env_cls_name]["task_type"]
+            assert task_type_str in locals(), "can't find a task class %s." % task_type_str
+            inherit_class = locals()[task_type_str]
+            env_cls = type(env_dict[env_cls_name]["task_type"], (inherit_class, ), {})
+            locals()[env_cls_name] = env_cls  # bind cls to local
+
+        # 2. set attrs
         for k1, v1 in env_dict[env_cls_name]["attrs"].iteritems():
-            # to bind variable in loop.
+            # 2.1 fix value
+            if k1 == "shell_scripts":
+                if isinstance(v1, list):
+                    v1 = u";\n".join(v1)
+            # 2.2 to bind variable in loop.
             v1_wrap = (lambda v1: lambda self: v1)(v1)
             setattr(env_cls, k1, v1_wrap)
 
