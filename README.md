@@ -1,11 +1,16 @@
-lui
+lui [![Build Status](https://img.shields.io/travis/17zuoye/lui/master.svg?style=flat)](https://travis-ci.org/17zuoye/lui)
 ========================
 A simple deployment setup tool, inspired by luigi and homebrew.
 
-[![Build Status](https://img.shields.io/travis/17zuoye/lui/master.svg?style=flat)](https://travis-ci.org/17zuoye/lui)
 
-
-
+Usage
+----------------------------
+```bash
+wget https://raw.githubusercontent.com/17zuoye/lui/master/lui.py -O lui
+chmod +x lui
+mv -f lui /usr/local/bin/
+lui
+```
 
 Related to [luigi](http://github.com/spotify/luigi)
 ------------------------
