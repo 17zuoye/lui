@@ -223,7 +223,7 @@ class PyenvInstalPython279(ShellBehavior):
 
     def done(self):
         # Fix PYENV_ROOT env set in /etc/profile
-        pyenv_root = cmd("%; pyenv root" % lui["source_profile"])
+        pyenv_root = cmd("%s; pyenv root" % lui["source_profile"])
         return os.path.exists(os.path.join(pyenv_root, "versions/2.7.9"))
 
     def shell_scripts(self):
