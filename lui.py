@@ -26,6 +26,7 @@ import sys
 import pwd
 import commands as COMMANDS
 import json
+import shutil
 
 curr_dir = os.getcwd()
 
@@ -363,6 +364,13 @@ class lui_env(dict):
 lui = lui_env()
 
 
+def clean_egg_tmp_install_dir():
+    tmp_names = filter(lambda d1: len(d1) == len("tmpiq4vDJ"), os.listdir("/tmp"))
+    for tmp_name in tmp_names:
+        tmp_dir = os.path.join("/tmp", tmp_name)
+        if os.path.exists(tmp_dir + "/EGG-INFO"):
+            shutil.rmtree(tmp_dir)
+
 if __name__ == '__main__':
     # TODO check key exists
 
@@ -371,3 +379,5 @@ if __name__ == '__main__':
 
     env_to_run_cls = lui[lui["lui_json"]["env_run_with_first"][0]]
     run(env_to_run_cls)
+
+    clean_egg_tmp_install_dir()
