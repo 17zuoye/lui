@@ -6,10 +6,22 @@ A simple deployment setup tool, inspired by luigi and homebrew.
 Usage
 ----------------------------
 ```bash
-wget https://raw.githubusercontent.com/17zuoye/lui/master/lui.py -O lui
-chmod +x lui
-mv -f lui /usr/local/bin/
-lui
+wget https://raw.githubusercontent.com/17zuoye/lui/master/lui.py
+chmod +x lui.py
+./lui.py
+
+
+# install on clusters
+for host in host1 host2
+do
+  echo
+  echo "** Installing $host"
+  export USE_USER=hadoop
+  export lui=lui.py
+  export json=lui_hadoop_cluster.json
+  scp $lui $json root@$host:/tmp/ && ssh root@$host "su - $USE_USER -c '/tmp/$lui /tmp/$json;rm -f /tmp/$lui /tmp/$json; ' "
+done
+
 ```
 
 Related to [luigi](http://github.com/spotify/luigi)
