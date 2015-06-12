@@ -87,9 +87,12 @@ class Env(object):
 
 class PackageEnv(Env):
 
-    def extract_package_name(self, pkg1):
+    def extract_package_name(self, pkg1, mode="install"):
+        assert mode in ["install", "import"], mode
+
         if isinstance(pkg1, dict):
-            pkg1 = pkg1["package"]  # extract from {"url": "", "package": "hello"}
+            key = {"install": "url", "import": "package"}[mode]
+            pkg1 = pkg1[key]  # extract from {"url": "", "package": "hello"}
         else:
             pkg1 = pkg1.split(" ")[0]  # extract pyirt from pyirt==0.1
         return pkg1
