@@ -19,7 +19,8 @@ do
   export USE_USER=hadoop
   export lui=lui.py
   export json=lui_hadoop_cluster.json
-  scp $lui $json root@$host:/tmp/ && ssh root@$host "su - $USE_USER -c '/tmp/$lui /tmp/$json;rm -f /tmp/$lui /tmp/$json; ' "
+  scp $lui $json root@$host:/tmp/
+  nohup ssh root@$host "su - $USE_USER -c 'cd /tmp; ./$lui $json; rm -f $lui $json;'" &
 done
 
 ```
