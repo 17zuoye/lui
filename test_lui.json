@@ -69,6 +69,7 @@
                     "python-dateutil #   # not dateutil",
                     "PyYAML",
                     "cached_property",
+                    {"url": "https://github.com/17zuoye/etl_utils/zipball/master", "package": "etl_utils"},
 
                     "mercurial",
                     "pip",

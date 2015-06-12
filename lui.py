@@ -87,10 +87,17 @@ class Env(object):
 
 class PackageEnv(Env):
 
+    def extract_package_name(self, pkg1):
+        if isinstance(pkg1, dict):
+            pkg1 = pkg1["package"]  # extract from {"url": "", "package": "hello"}
+        else:
+            pkg1 = pkg1.split(" ")[0]  # extract pyirt from pyirt==0.1
+        return pkg1
+
     def run(self):
         """ Run the install shell scripts"""
         # 1 build shell command list
-        commands = ["%s %s" % (self.run_cmd(), pkg1) for pkg1 in self.packages()]
+        commands = ["%s %s" % (self.run_cmd(), self.extract_package_name(pkg1)) for pkg1 in self.packages()]
 
         for command1 in commands:
             print "[command]", command1
@@ -254,7 +261,7 @@ class PipEnv(PackageEnv):
         import pkg_resources
 
         for pkg1 in self.packages():
-            pkg1 = pkg1.split(" ")[0]
+            pkg1 = self.extract_package_name(pkg1)
             print u"[info] try pkg \"%s\"." % pkg1
             try:
                 pkg_resources.require(pkg1)  # support version
