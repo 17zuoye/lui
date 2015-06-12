@@ -197,9 +197,9 @@ class FixPython26to27(ShellBehavior):
         is_valid = True
         try:
             import pkg_resources
+            pkg_resources  # use it, cause PEP8 needed.
         except:
             is_valid = False
-        pkg_resources  # use it, cause PEP8 needed.
         return is_valid
 
     def shell_scripts(self):
