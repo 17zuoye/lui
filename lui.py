@@ -141,10 +141,12 @@ class ShellBehavior(Env):
     def shell_scripts(self):
         raise NotImplementedError
 
-    output_file = lambda self: "/not exists!"
+    output_file = lambda: "/not exists!"
 
     def done(self):
-        f1 = self.output_file()
+        f1 = self.output_file
+        if callable(f1):
+            f1 = f1()
         result = os.path.exists(f1)
         print "[check a env] \"%s\" exists output %s => %s" % (self.name, f1, result)
         return result
